@@ -127,6 +127,15 @@ class TestInputMediaVideo:
     supports_streaming = True
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
 
+    def test_slot_behaviour(self, input_media_video, recwarn, mro_slots):
+        inst = input_media_video
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not inst.__dict__, f"got missing slot(s): {inst.__dict__}"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+        inst.custom, inst.type = 'should give warning', self.type_
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), recwarn.list
+
     def test_expected_values(self, input_media_video):
         assert input_media_video.type == self.type_
         assert input_media_video.media == self.media
@@ -185,6 +194,15 @@ class TestInputMediaPhoto:
     parse_mode = 'Markdown'
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
 
+    def test_slot_behaviour(self, input_media_photo, recwarn, mro_slots):
+        inst = input_media_photo
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not inst.__dict__, f"got missing slot(s): {inst.__dict__}"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+        inst.custom, inst.type = 'should give warning', self.type_
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), recwarn.list
+
     def test_expected_values(self, input_media_photo):
         assert input_media_photo.type == self.type_
         assert input_media_photo.media == self.media
@@ -230,6 +248,15 @@ class TestInputMediaAnimation:
     width = 30
     height = 30
     duration = 1
+
+    def test_slot_behaviour(self, input_media_animation, recwarn, mro_slots):
+        inst = input_media_animation
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not inst.__dict__, f"got missing slot(s): {inst.__dict__}"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+        inst.custom, inst.type = 'should give warning', self.type_
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), recwarn.list
 
     def test_expected_values(self, input_media_animation):
         assert input_media_animation.type == self.type_
@@ -283,6 +310,15 @@ class TestInputMediaAudio:
     title = 'title'
     parse_mode = 'HTML'
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
+
+    def test_slot_behaviour(self, input_media_audio, recwarn, mro_slots):
+        inst = input_media_audio
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not inst.__dict__, f"got missing slot(s): {inst.__dict__}"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+        inst.custom, inst.type = 'should give warning', self.type_
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), recwarn.list
 
     def test_expected_values(self, input_media_audio):
         assert input_media_audio.type == self.type_
@@ -340,6 +376,15 @@ class TestInputMediaDocument:
     parse_mode = 'HTML'
     caption_entities = [MessageEntity(MessageEntity.BOLD, 0, 2)]
     disable_content_type_detection = True
+
+    def test_slot_behaviour(self, input_media_document, recwarn, mro_slots):
+        inst = input_media_document
+        for attr in inst.__slots__:
+            assert getattr(inst, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not inst.__dict__, f"got missing slot(s): {inst.__dict__}"
+        assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
+        inst.custom, inst.type = 'should give warning', self.type_
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), recwarn.list
 
     def test_expected_values(self, input_media_document):
         assert input_media_document.type == self.type_
@@ -406,8 +451,8 @@ class TestSendMediaGroup:
         messages = bot.send_media_group(chat_id, media_group)
         assert isinstance(messages, list)
         assert len(messages) == 3
-        assert all([isinstance(mes, Message) for mes in messages])
-        assert all([mes.media_group_id == messages[0].media_group_id for mes in messages])
+        assert all(isinstance(mes, Message) for mes in messages)
+        assert all(mes.media_group_id == messages[0].media_group_id for mes in messages)
         assert all(mes.caption == f'photo {idx+1}' for idx, mes in enumerate(messages))
         assert all(
             mes.caption_entities == [MessageEntity(MessageEntity.BOLD, 0, 5)] for mes in messages
@@ -421,8 +466,8 @@ class TestSendMediaGroup:
         )
         assert isinstance(messages, list)
         assert len(messages) == 3
-        assert all([isinstance(mes, Message) for mes in messages])
-        assert all([mes.media_group_id == messages[0].media_group_id for mes in messages])
+        assert all(isinstance(mes, Message) for mes in messages)
+        assert all(mes.media_group_id == messages[0].media_group_id for mes in messages)
         assert all(mes.caption == f'photo {idx+1}' for idx, mes in enumerate(messages))
         assert all(
             mes.caption_entities == [MessageEntity(MessageEntity.BOLD, 0, 5)] for mes in messages
@@ -491,8 +536,8 @@ class TestSendMediaGroup:
 
         assert isinstance(messages, list)
         assert len(messages) == 3
-        assert all([isinstance(mes, Message) for mes in messages])
-        assert all([mes.media_group_id == messages[0].media_group_id for mes in messages])
+        assert all(isinstance(mes, Message) for mes in messages)
+        assert all(mes.media_group_id == messages[0].media_group_id for mes in messages)
 
     @flaky(3, 1)
     @pytest.mark.parametrize(
@@ -545,6 +590,21 @@ class TestSendMediaGroup:
             chat_id=cid, message_id=mid, media=InputMediaPhoto(thumb_file)
         )
         assert isinstance(new_message, Message)
+
+    def test_edit_message_media_with_thumb(
+        self, bot, chat_id, video_file, photo_file, monkeypatch  # noqa: F811
+    ):
+        def test(*args, **kwargs):
+            data = kwargs['fields']
+            video_check = data[input_video.media.attach] == input_video.media.field_tuple
+            thumb_check = data[input_video.thumb.attach] == input_video.thumb.field_tuple
+            result = video_check and thumb_check
+            raise Exception(f"Test was {'successful' if result else 'failing'}")
+
+        monkeypatch.setattr('telegram.utils.request.Request._request_wrapper', test)
+        input_video = InputMediaVideo(video_file, thumb=photo_file)
+        with pytest.raises(Exception, match='Test was successful'):
+            bot.edit_message_media(chat_id=chat_id, message_id=123, media=input_video)
 
     @flaky(3, 1)
     @pytest.mark.parametrize(

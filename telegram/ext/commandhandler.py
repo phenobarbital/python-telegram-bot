@@ -27,15 +27,16 @@ from telegram.utils.deprecate import TelegramDeprecationWarning
 from telegram.utils.types import SLT
 from telegram.utils.helpers import DefaultValue, DEFAULT_FALSE
 
+from .utils.types import CCT
 from .handler import Handler
 
 if TYPE_CHECKING:
-    from telegram.ext import CallbackContext, Dispatcher
+    from telegram.ext import Dispatcher
 
 RT = TypeVar('RT')
 
 
-class CommandHandler(Handler[Update]):
+class CommandHandler(Handler[Update, CCT]):
     """Handler class to handle Telegram commands.
 
     Commands are Telegram messages that start with ``/``, optionally followed by an ``@`` and the
@@ -129,10 +130,12 @@ class CommandHandler(Handler[Update]):
         run_async (:obj:`bool`): Determines whether the callback will run asynchronously.
     """
 
+    __slots__ = ('command', 'filters', 'pass_args')
+
     def __init__(
         self,
         command: SLT[str],
-        callback: Callable[[Update, 'CallbackContext'], RT],
+        callback: Callable[[Update, CCT], RT],
         filters: BaseFilter = None,
         allow_edited: bool = None,
         pass_args: bool = False,
@@ -219,6 +222,9 @@ class CommandHandler(Handler[Update]):
         update: Update = None,
         check_result: Optional[Union[bool, Tuple[List[str], Optional[bool]]]] = None,
     ) -> Dict[str, object]:
+        """Provide text after the command to the callback the ``args`` argument as list, split on
+        single whitespaces.
+        """
         optional_args = super().collect_optional_args(dispatcher, update)
         if self.pass_args and isinstance(check_result, tuple):
             optional_args['args'] = check_result[0]
@@ -226,11 +232,14 @@ class CommandHandler(Handler[Update]):
 
     def collect_additional_context(
         self,
-        context: 'CallbackContext',
+        context: CCT,
         update: Update,
         dispatcher: 'Dispatcher',
         check_result: Optional[Union[bool, Tuple[List[str], Optional[bool]]]],
     ) -> None:
+        """Add text after the command to :attr:`CallbackContext.args` as list, split on single
+        whitespaces and add output of data filters to :attr:`CallbackContext` as well.
+        """
         if isinstance(check_result, tuple):
             context.args = check_result[0]
             if isinstance(check_result[1], dict):
@@ -238,7 +247,7 @@ class CommandHandler(Handler[Update]):
 
 
 class PrefixHandler(CommandHandler):
-    """Handler class to handle custom prefix commands
+    """Handler class to handle custom prefix commands.
 
     This is a intermediate handler between :class:`MessageHandler` and :class:`CommandHandler`.
     It supports configurable commands with the same options as CommandHandler. It will respond to
@@ -265,7 +274,7 @@ class PrefixHandler(CommandHandler):
         .. code:: python
 
             PrefixHandler(['!', '#'], ['test', 'help'], callback)  # will respond to '!test', \
-'#test', '!help' and '#help'.
+            '#test', '!help' and '#help'.
 
 
     By default the handler listens to messages as well as edited messages. To change this behavior
@@ -344,11 +353,14 @@ class PrefixHandler(CommandHandler):
 
     """
 
+    # 'prefix' is a class property, & 'command' is included in the superclass, so they're left out.
+    __slots__ = ('_prefix', '_command', '_commands')
+
     def __init__(
         self,
         prefix: SLT[str],
         command: SLT[str],
-        callback: Callable[[Update, 'CallbackContext'], RT],
+        callback: Callable[[Update, CCT], RT],
         filters: BaseFilter = None,
         pass_args: bool = False,
         pass_update_queue: bool = False,
@@ -442,15 +454,3 @@ class PrefixHandler(CommandHandler):
                     return text_list[1:], filter_result
                 return False
         return None
-
-    def collect_additional_context(
-        self,
-        context: 'CallbackContext',
-        update: Update,
-        dispatcher: 'Dispatcher',
-        check_result: Optional[Union[bool, Tuple[List[str], Optional[bool]]]],
-    ) -> None:
-        if isinstance(check_result, tuple):
-            context.args = check_result[0]
-            if isinstance(check_result[1], dict):
-                context.update(check_result[1])

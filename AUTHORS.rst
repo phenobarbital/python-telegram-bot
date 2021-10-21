@@ -26,6 +26,7 @@ Contributors
 
 The following wonderful people contributed directly or indirectly to this project:
 
+- `Abshar <https://github.com/abxhr>`_
 - `Alateas <https://github.com/alateas>`_
 - `Ales Dokshanin <https://github.com/alesdokshanin>`_
 - `Ambro17 <https://github.com/Ambro17>`_
@@ -39,6 +40,7 @@ The following wonderful people contributed directly or indirectly to this projec
 - `daimajia <https://github.com/daimajia>`_
 - `Daniel Reed <https://github.com/nmlorg>`_
 - `D David Livingston <https://github.com/daviddl9>`_
+- `DonalDuck004 <https://github.com/DonalDuck004>`_
 - `Eana Hufwe <https://github.com/blueset>`_
 - `Ehsan Online <https://github.com/ehsanonline>`_
 - `Eli Gao <https://github.com/eligao>`_
@@ -77,12 +79,14 @@ The following wonderful people contributed directly or indirectly to this projec
 - `naveenvhegde <https://github.com/naveenvhegde>`_
 - `neurrone <https://github.com/neurrone>`_
 - `NikitaPirate <https://github.com/NikitaPirate>`_
+- `Nikolai Krivenko <https://github.com/nkrivenko>`_
 - `njittam <https://github.com/njittam>`_
 - `Noam Meltzer <https://github.com/tsnoam>`_
 - `Oleg Shlyazhko <https://github.com/ollmer>`_
 - `Oleg Sushchenko <https://github.com/feuillemorte>`_
 - `Or Bin <https://github.com/OrBin>`_
 - `overquota <https://github.com/overquota>`_
+- `Paradox <https://github.com/paradox70>`_
 - `Patrick Hofmann <https://github.com/PH89>`_
 - `Paul Larsen <https://github.com/PaulSonOfLars>`_
 - `Pieter Schutz <https://github.com/eldinnie>`_
@@ -105,6 +109,7 @@ The following wonderful people contributed directly or indirectly to this projec
 - `Vorobjev Simon <https://github.com/simonvorobjev>`_
 - `Wagner Macedo <https://github.com/wagnerluis1982>`_
 - `wjt <https://github.com/wjt>`_
+- `zeroone2numeral2 <https://github.com/zeroone2numeral2>`_
 - `zeshuaro <https://github.com/zeshuaro>`_
 
 Please add yourself here alphabetically when you submit your first pull request.

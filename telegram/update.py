@@ -125,6 +125,27 @@ class Update(TelegramObject):
 
     """
 
+    __slots__ = (
+        'callback_query',
+        'chosen_inline_result',
+        'pre_checkout_query',
+        'inline_query',
+        'update_id',
+        'message',
+        'shipping_query',
+        'poll',
+        'poll_answer',
+        'channel_post',
+        'edited_channel_post',
+        'edited_message',
+        '_effective_user',
+        '_effective_chat',
+        '_effective_message',
+        'my_chat_member',
+        'chat_member',
+        '_id_attrs',
+    )
+
     MESSAGE = constants.UPDATE_MESSAGE
     """:const:`telegram.constants.UPDATE_MESSAGE`
 
@@ -313,8 +334,8 @@ class Update(TelegramObject):
         :class:`telegram.Message`: The message included in this update, no matter what kind of
             update this is. Will be :obj:`None` for :attr:`inline_query`,
             :attr:`chosen_inline_result`, :attr:`callback_query` from inline messages,
-            :attr:`shipping_query`, :attr:`pre_checkout_query`, :attr:`poll` and
-            :attr:`poll_answer`.
+            :attr:`shipping_query`, :attr:`pre_checkout_query`, :attr:`poll`,
+            :attr:`poll_answer`, :attr:`my_chat_member` and :attr:`chat_member`.
 
         """
         if self._effective_message:
@@ -342,7 +363,8 @@ class Update(TelegramObject):
 
     @classmethod
     def de_json(cls, data: Optional[JSONDict], bot: 'Bot') -> Optional['Update']:
-        data = cls.parse_data(data)
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
         if not data:
             return None

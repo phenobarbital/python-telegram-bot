@@ -72,8 +72,7 @@ def raise_dphs(func):
         result = func(self, *args, **kwargs)
         if self.raise_dp_handler_stop:
             raise DispatcherHandlerStop(result)
-        else:
-            return result
+        return result
 
     return decorator
 
@@ -94,6 +93,17 @@ class TestConversationHandler:
 
     raise_dp_handler_stop = False
     test_flag = False
+
+    def test_slot_behaviour(self, recwarn, mro_slots):
+        handler = ConversationHandler(self.entry_points, self.states, self.fallbacks)
+        for attr in handler.__slots__:
+            assert getattr(handler, attr, 'err') != 'err', f"got extra slot '{attr}'"
+        assert not handler.__dict__, f"got missing slot(s): {handler.__dict__}"
+        assert len(mro_slots(handler)) == len(set(mro_slots(handler))), "duplicate slot"
+        handler.custom, handler._persistence = 'should give warning', handler._persistence
+        assert len(recwarn) == 1 and 'custom' in str(recwarn[0].message), [
+            w.message for w in recwarn.list
+        ]
 
     # Test related
     @pytest.fixture(autouse=True)
@@ -168,8 +178,7 @@ class TestConversationHandler:
     def start(self, bot, update):
         if isinstance(update, Update):
             return self._set_state(update, self.THIRSTY)
-        else:
-            return self._set_state(bot, self.THIRSTY)
+        return self._set_state(bot, self.THIRSTY)
 
     @raise_dphs
     def end(self, bot, update):
@@ -187,8 +196,7 @@ class TestConversationHandler:
     def brew(self, bot, update):
         if isinstance(update, Update):
             return self._set_state(update, self.BREWING)
-        else:
-            return self._set_state(bot, self.BREWING)
+        return self._set_state(bot, self.BREWING)
 
     @raise_dphs
     def drink(self, bot, update):

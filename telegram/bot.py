@@ -21,6 +21,7 @@
 
 import functools
 import logging
+import warnings
 from datetime import datetime
 
 from typing import (
@@ -56,6 +57,7 @@ from telegram import (
     Animation,
     Audio,
     BotCommand,
+    BotCommandScope,
     Chat,
     ChatMember,
     ChatPermissions,
@@ -89,6 +91,7 @@ from telegram import (
 )
 from telegram.constants import MAX_INLINE_QUERY_RESULTS
 from telegram.error import InvalidToken, TelegramError
+from telegram.utils.deprecate import TelegramDeprecationWarning
 from telegram.utils.helpers import (
     DEFAULT_NONE,
     DefaultValue,
@@ -116,7 +119,7 @@ if TYPE_CHECKING:
 RT = TypeVar('RT')
 
 
-def log(
+def log(  # skipcq: PY-D0003
     func: Callable[..., RT], *args: object, **kwargs: object  # pylint: disable=W0613
 ) -> Callable[..., RT]:
     logger = logging.getLogger(func.__module__)
@@ -156,7 +159,24 @@ class Bot(TelegramObject):
         defaults (:class:`telegram.ext.Defaults`, optional): An object containing default values to
             be used if not set explicitly in the bot methods.
 
+            .. deprecated:: 13.6
+               Passing :class:`telegram.ext.Defaults` to :class:`telegram.Bot` is deprecated. If
+               you want to use :class:`telegram.ext.Defaults`, please use
+               :class:`telegram.ext.ExtBot` instead.
+
     """
+
+    __slots__ = (
+        'token',
+        'base_url',
+        'base_file_url',
+        'private_key',
+        'defaults',
+        '_bot',
+        '_commands',
+        '_request',
+        'logger',
+    )
 
     def __init__(
         self,
@@ -173,6 +193,13 @@ class Bot(TelegramObject):
         # Gather default
         self.defaults = defaults
 
+        if self.defaults:
+            warnings.warn(
+                'Passing Defaults to telegram.Bot is deprecated. Use telegram.ext.ExtBot instead.',
+                TelegramDeprecationWarning,
+                stacklevel=3,
+            )
+
         if base_url is None:
             base_url = 'https://api.telegram.org/bot'
 
@@ -184,6 +211,7 @@ class Bot(TelegramObject):
         self._bot: Optional[User] = None
         self._commands: Optional[List[BotCommand]] = None
         self._request = request or Request()
+        self.private_key = None
         self.logger = logging.getLogger(__name__)
 
         if private_key:
@@ -195,6 +223,14 @@ class Bot(TelegramObject):
             self.private_key = serialization.load_pem_private_key(
                 private_key, password=private_key_password, backend=default_backend()
             )
+
+    # The ext_bot argument is a little hack to get warnings handled correctly.
+    # It's not very clean, but the warnings will be dropped at some point anyway.
+    def __setattr__(self, key: str, value: object, ext_bot: bool = False) -> None:
+        if issubclass(self.__class__, Bot) and self.__class__ is not Bot and not ext_bot:
+            object.__setattr__(self, key, value)
+            return
+        super().__setattr__(key, value)
 
     def _insert_defaults(
         self, data: Dict[str, object], timeout: ODVInput[float]
@@ -301,7 +337,7 @@ class Bot(TelegramObject):
         return Message.de_json(result, self)  # type: ignore[return-value, arg-type]
 
     @property
-    def request(self) -> Request:
+    def request(self) -> Request:  # skip-cq: PY-D0003
         return self._request
 
     @staticmethod
@@ -319,7 +355,6 @@ class Bot(TelegramObject):
     @property
     def bot(self) -> User:
         """:class:`telegram.User`: User instance for the bot as returned by :meth:`get_me`."""
-
         if self._bot is None:
             self._bot = self.get_me()
         return self._bot
@@ -327,54 +362,58 @@ class Bot(TelegramObject):
     @property
     def id(self) -> int:  # pylint: disable=C0103
         """:obj:`int`: Unique identifier for this bot."""
-
         return self.bot.id
 
     @property
     def first_name(self) -> str:
         """:obj:`str`: Bot's first name."""
-
         return self.bot.first_name
 
     @property
     def last_name(self) -> str:
         """:obj:`str`: Optional. Bot's last name."""
-
         return self.bot.last_name  # type: ignore
 
     @property
     def username(self) -> str:
         """:obj:`str`: Bot's username."""
-
         return self.bot.username  # type: ignore
 
     @property
     def link(self) -> str:
         """:obj:`str`: Convenience property. Returns the t.me link of the bot."""
-
         return f"https://t.me/{self.username}"
 
     @property
     def can_join_groups(self) -> bool:
         """:obj:`bool`: Bot's :attr:`telegram.User.can_join_groups` attribute."""
-
         return self.bot.can_join_groups  # type: ignore
 
     @property
     def can_read_all_group_messages(self) -> bool:
         """:obj:`bool`: Bot's :attr:`telegram.User.can_read_all_group_messages` attribute."""
-
         return self.bot.can_read_all_group_messages  # type: ignore
 
     @property
     def supports_inline_queries(self) -> bool:
         """:obj:`bool`: Bot's :attr:`telegram.User.supports_inline_queries` attribute."""
-
         return self.bot.supports_inline_queries  # type: ignore
 
     @property
     def commands(self) -> List[BotCommand]:
-        """List[:class:`BotCommand`]: Bot's commands."""
+        """
+        List[:class:`BotCommand`]: Bot's commands as available in the default scope.
+
+        .. deprecated:: 13.7
+            This property has been deprecated since there can be different commands available for
+            different scopes.
+        """
+        warnings.warn(
+            "Bot.commands has been deprecated since there can be different command "
+            "lists for different scopes.",
+            TelegramDeprecationWarning,
+            stacklevel=2,
+        )
 
         if self._commands is None:
             self._commands = self.get_my_commands()
@@ -383,7 +422,6 @@ class Bot(TelegramObject):
     @property
     def name(self) -> str:
         """:obj:`str`: Bot's @username."""
-
         return f'@{self.username}'
 
     @log
@@ -1986,6 +2024,62 @@ class Bot(TelegramObject):
 
         return result  # type: ignore[return-value]
 
+    def _effective_inline_results(  # pylint: disable=R0201
+        self,
+        results: Union[
+            Sequence['InlineQueryResult'], Callable[[int], Optional[Sequence['InlineQueryResult']]]
+        ],
+        next_offset: str = None,
+        current_offset: str = None,
+    ) -> Tuple[Sequence['InlineQueryResult'], Optional[str]]:
+        """
+        Builds the effective results from the results input.
+        We make this a stand-alone method so tg.ext.ExtBot can wrap it.
+
+        Returns:
+            Tuple of 1. the effective results and 2. correct the next_offset
+
+        """
+        if current_offset is not None and next_offset is not None:
+            raise ValueError('`current_offset` and `next_offset` are mutually exclusive!')
+
+        if current_offset is not None:
+            # Convert the string input to integer
+            if current_offset == '':
+                current_offset_int = 0
+            else:
+                current_offset_int = int(current_offset)
+
+            # for now set to empty string, stating that there are no more results
+            # might change later
+            next_offset = ''
+
+            if callable(results):
+                callable_output = results(current_offset_int)
+                if not callable_output:
+                    effective_results: Sequence['InlineQueryResult'] = []
+                else:
+                    effective_results = callable_output
+                    # the callback *might* return more results on the next call, so we increment
+                    # the page count
+                    next_offset = str(current_offset_int + 1)
+            else:
+                if len(results) > (current_offset_int + 1) * MAX_INLINE_QUERY_RESULTS:
+                    # we expect more results for the next page
+                    next_offset_int = current_offset_int + 1
+                    next_offset = str(next_offset_int)
+                    effective_results = results[
+                        current_offset_int
+                        * MAX_INLINE_QUERY_RESULTS : next_offset_int
+                        * MAX_INLINE_QUERY_RESULTS
+                    ]
+                else:
+                    effective_results = results[current_offset_int * MAX_INLINE_QUERY_RESULTS :]
+        else:
+            effective_results = results  # type: ignore[assignment]
+
+        return effective_results, next_offset
+
     @log
     def answer_inline_query(
         self,
@@ -2090,38 +2184,11 @@ class Bot(TelegramObject):
                     else:
                         res.input_message_content.disable_web_page_preview = None
 
-        if current_offset is not None and next_offset is not None:
-            raise ValueError('`current_offset` and `next_offset` are mutually exclusive!')
+        effective_results, next_offset = self._effective_inline_results(
+            results=results, next_offset=next_offset, current_offset=current_offset
+        )
 
-        if current_offset is not None:
-            if current_offset == '':
-                current_offset_int = 0
-            else:
-                current_offset_int = int(current_offset)
-
-            next_offset = ''
-
-            if callable(results):
-                callable_output = results(current_offset_int)
-                if not callable_output:
-                    effective_results: Sequence['InlineQueryResult'] = []
-                else:
-                    effective_results = callable_output
-                    next_offset = str(current_offset_int + 1)
-            else:
-                if len(results) > (current_offset_int + 1) * MAX_INLINE_QUERY_RESULTS:
-                    next_offset_int = current_offset_int + 1
-                    next_offset = str(next_offset_int)
-                    effective_results = results[
-                        current_offset_int
-                        * MAX_INLINE_QUERY_RESULTS : next_offset_int
-                        * MAX_INLINE_QUERY_RESULTS
-                    ]
-                else:
-                    effective_results = results[current_offset_int * MAX_INLINE_QUERY_RESULTS :]
-        else:
-            effective_results = results  # type: ignore[assignment]
-
+        # Apply defaults
         for result in effective_results:
             _set_defaults(result)
 
@@ -2259,10 +2326,42 @@ class Bot(TelegramObject):
         revoke_messages: bool = None,
     ) -> bool:
         """
-        Use this method to kick a user from a group, supergroup or a channel. In the case of
+        Deprecated, use :func:`~telegram.Bot.ban_chat_member` instead.
+
+        .. deprecated:: 13.7
+
+        """
+        warnings.warn(
+            '`bot.kick_chat_member` is deprecated. Use `bot.ban_chat_member` instead.',
+            TelegramDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.ban_chat_member(
+            chat_id=chat_id,
+            user_id=user_id,
+            timeout=timeout,
+            until_date=until_date,
+            api_kwargs=api_kwargs,
+            revoke_messages=revoke_messages,
+        )
+
+    @log
+    def ban_chat_member(
+        self,
+        chat_id: Union[str, int],
+        user_id: Union[str, int],
+        timeout: ODVInput[float] = DEFAULT_NONE,
+        until_date: Union[int, datetime] = None,
+        api_kwargs: JSONDict = None,
+        revoke_messages: bool = None,
+    ) -> bool:
+        """
+        Use this method to ban a user from a group, supergroup or a channel. In the case of
         supergroups and channels, the user will not be able to return to the group on their own
         using invite links, etc., unless unbanned first. The bot must be an administrator in the
         chat for this to work and must have the appropriate admin rights.
+
+         .. versionadded:: 13.7
 
         Args:
             chat_id (:obj:`int` | :obj:`str`): Unique identifier for the target group or username
@@ -2305,7 +2404,7 @@ class Bot(TelegramObject):
         if revoke_messages is not None:
             data['revoke_messages'] = revoke_messages
 
-        result = self._post('kickChatMember', data, timeout=timeout, api_kwargs=api_kwargs)
+        result = self._post('banChatMember', data, timeout=timeout, api_kwargs=api_kwargs)
 
         return result  # type: ignore[return-value]
 
@@ -2606,7 +2705,6 @@ class Bot(TelegramObject):
         Raises:
             :class:`telegram.error.TelegramError`
         """
-
         if inline_message_id is None and (chat_id is None or message_id is None):
             raise ValueError(
                 'edit_message_media: Both chat_id and message_id are required when '
@@ -2758,18 +2856,22 @@ class Bot(TelegramObject):
         # * Long polling poses a different problem: the connection might have been dropped while
         #   waiting for the server to return and there's no way of knowing the connection had been
         #   dropped in real time.
-        result = self._post(
-            'getUpdates', data, timeout=float(read_latency) + float(timeout), api_kwargs=api_kwargs
+        result = cast(
+            List[JSONDict],
+            self._post(
+                'getUpdates',
+                data,
+                timeout=float(read_latency) + float(timeout),
+                api_kwargs=api_kwargs,
+            ),
         )
 
         if result:
-            self.logger.debug(
-                'Getting updates: %s', [u['update_id'] for u in result]  # type: ignore
-            )
+            self.logger.debug('Getting updates: %s', [u['update_id'] for u in result])
         else:
             self.logger.debug('No new updates found.')
 
-        return [Update.de_json(u, self) for u in result]  # type: ignore
+        return Update.de_list(result, self)  # type: ignore[return-value]
 
     @log
     def set_webhook(
@@ -3006,7 +3108,29 @@ class Bot(TelegramObject):
         timeout: ODVInput[float] = DEFAULT_NONE,
         api_kwargs: JSONDict = None,
     ) -> int:
+        """
+        Deprecated, use :func:`~telegram.Bot.get_chat_member_count` instead.
+
+        .. deprecated:: 13.7
+        """
+        warnings.warn(
+            '`bot.get_chat_members_count` is deprecated. '
+            'Use `bot.get_chat_member_count` instead.',
+            TelegramDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_chat_member_count(chat_id=chat_id, timeout=timeout, api_kwargs=api_kwargs)
+
+    @log
+    def get_chat_member_count(
+        self,
+        chat_id: Union[str, int],
+        timeout: ODVInput[float] = DEFAULT_NONE,
+        api_kwargs: JSONDict = None,
+    ) -> int:
         """Use this method to get the number of members in a chat.
+
+         .. versionadded:: 13.7
 
         Args:
             chat_id (:obj:`int` | :obj:`str`): Unique identifier for the target chat or username
@@ -3026,7 +3150,7 @@ class Bot(TelegramObject):
         """
         data: JSONDict = {'chat_id': chat_id}
 
-        result = self._post('getChatMembersCount', data, timeout=timeout, api_kwargs=api_kwargs)
+        result = self._post('getChatMemberCount', data, timeout=timeout, api_kwargs=api_kwargs)
 
         return result  # type: ignore[return-value]
 
@@ -3227,6 +3351,11 @@ class Bot(TelegramObject):
         Use this method to get data for high score tables. Will return the score of the specified
         user and several of their neighbors in a game.
 
+        Note:
+            This method will currently return scores for the target user, plus two of their
+            closest neighbors on each side. Will also return the top three users if the user and
+            his neighbors are not among them. Please note that this behavior is subject to change.
+
         Args:
             user_id (:obj:`int`): Target user id.
             chat_id (:obj:`int` | :obj:`str`, optional): Required if inline_message_id is not
@@ -3425,7 +3554,7 @@ class Bot(TelegramObject):
         if is_flexible is not None:
             data['is_flexible'] = is_flexible
         if send_phone_number_to_provider is not None:
-            data['send_phone_number_to_provider'] = send_email_to_provider
+            data['send_phone_number_to_provider'] = send_phone_number_to_provider
         if send_email_to_provider is not None:
             data['send_email_to_provider'] = send_email_to_provider
 
@@ -3868,7 +3997,7 @@ class Bot(TelegramObject):
             chat_id (:obj:`int` | :obj:`str`): Unique identifier for the target chat or username
                 of the target channel (in the format ``@channelusername``).
             expire_date (:obj:`int` | :obj:`datetime.datetime`, optional): Date when the link will
-                expire.
+                expire. Integer input will be interpreted as Unix timestamp.
                 For timezone naive :obj:`datetime.datetime` objects, the default timezone of the
                 bot will be used.
             member_limit (:obj:`int`, optional): Maximum number of users that can be members of
@@ -4257,7 +4386,6 @@ class Bot(TelegramObject):
             :class:`telegram.error.TelegramError`
 
         """
-
         data: JSONDict = {'chat_id': chat_id}
 
         return self._post(  # type: ignore[return-value]
@@ -4899,10 +5027,15 @@ class Bot(TelegramObject):
 
     @log
     def get_my_commands(
-        self, timeout: ODVInput[float] = DEFAULT_NONE, api_kwargs: JSONDict = None
+        self,
+        timeout: ODVInput[float] = DEFAULT_NONE,
+        api_kwargs: JSONDict = None,
+        scope: BotCommandScope = None,
+        language_code: str = None,
     ) -> List[BotCommand]:
         """
-        Use this method to get the current list of the bot's commands.
+        Use this method to get the current list of the bot's commands for the given scope and user
+        language.
 
         Args:
             timeout (:obj:`int` | :obj:`float`, optional): If this value is specified, use it as
@@ -4910,19 +5043,39 @@ class Bot(TelegramObject):
                 the connection pool).
             api_kwargs (:obj:`dict`, optional): Arbitrary keyword arguments to be passed to the
                 Telegram API.
+            scope (:class:`telegram.BotCommandScope`, optional): A JSON-serialized object,
+                describing scope of users. Defaults to :class:`telegram.BotCommandScopeDefault`.
+
+                .. versionadded:: 13.7
+
+            language_code (:obj:`str`, optional): A two-letter ISO 639-1 language code or an empty
+                string.
+
+                .. versionadded:: 13.7
 
         Returns:
-            List[:class:`telegram.BotCommand]`: On success, the commands set for the bot
+            List[:class:`telegram.BotCommand`]: On success, the commands set for the bot. An empty
+            list is returned if commands are not set.
 
         Raises:
             :class:`telegram.error.TelegramError`
 
         """
-        result = self._post('getMyCommands', timeout=timeout, api_kwargs=api_kwargs)
+        data: JSONDict = {}
 
-        self._commands = BotCommand.de_list(result, self)  # type: ignore[assignment,arg-type]
+        if scope:
+            data['scope'] = scope.to_dict()
 
-        return self._commands  # type: ignore[return-value]
+        if language_code:
+            data['language_code'] = language_code
+
+        result = self._post('getMyCommands', data, timeout=timeout, api_kwargs=api_kwargs)
+
+        if (scope is None or scope.type == scope.DEFAULT) and language_code is None:
+            self._commands = BotCommand.de_list(result, self)  # type: ignore[assignment,arg-type]
+            return self._commands  # type: ignore[return-value]
+
+        return BotCommand.de_list(result, self)  # type: ignore[return-value,arg-type]
 
     @log
     def set_my_commands(
@@ -4930,9 +5083,13 @@ class Bot(TelegramObject):
         commands: List[Union[BotCommand, Tuple[str, str]]],
         timeout: ODVInput[float] = DEFAULT_NONE,
         api_kwargs: JSONDict = None,
+        scope: BotCommandScope = None,
+        language_code: str = None,
     ) -> bool:
         """
-        Use this method to change the list of the bot's commands.
+        Use this method to change the list of the bot's commands. See the
+        `Telegram docs <https://core.telegram.org/bots#commands>`_ for more details about bot
+        commands.
 
         Args:
             commands (List[:class:`BotCommand` | (:obj:`str`, :obj:`str`)]): A JSON-serialized list
@@ -4943,9 +5100,20 @@ class Bot(TelegramObject):
                 the connection pool).
             api_kwargs (:obj:`dict`, optional): Arbitrary keyword arguments to be passed to the
                 Telegram API.
+            scope (:class:`telegram.BotCommandScope`, optional): A JSON-serialized object,
+                describing scope of users for which the commands are relevant. Defaults to
+                :class:`telegram.BotCommandScopeDefault`.
+
+                .. versionadded:: 13.7
+
+            language_code (:obj:`str`, optional): A two-letter ISO 639-1 language code. If empty,
+                commands will be applied to all users from the given scope, for whose language
+                there are no dedicated commands.
+
+                .. versionadded:: 13.7
 
         Returns:
-            :obj:`True`: On success
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         Raises:
             :class:`telegram.error.TelegramError`
@@ -4955,11 +5123,68 @@ class Bot(TelegramObject):
 
         data: JSONDict = {'commands': [c.to_dict() for c in cmds]}
 
+        if scope:
+            data['scope'] = scope.to_dict()
+
+        if language_code:
+            data['language_code'] = language_code
+
         result = self._post('setMyCommands', data, timeout=timeout, api_kwargs=api_kwargs)
 
-        # Set commands. No need to check for outcome.
+        # Set commands only for default scope. No need to check for outcome.
         # If request failed, we won't come this far
-        self._commands = cmds
+        if (scope is None or scope.type == scope.DEFAULT) and language_code is None:
+            self._commands = cmds
+
+        return result  # type: ignore[return-value]
+
+    @log
+    def delete_my_commands(
+        self,
+        scope: BotCommandScope = None,
+        language_code: str = None,
+        api_kwargs: JSONDict = None,
+        timeout: ODVInput[float] = DEFAULT_NONE,
+    ) -> bool:
+        """
+        Use this method to delete the list of the bot's commands for the given scope and user
+        language. After deletion,
+        `higher level commands <https://core.telegram.org/bots/api#determining-list-of-commands>`_
+        will be shown to affected users.
+
+        .. versionadded:: 13.7
+
+        Args:
+            scope (:class:`telegram.BotCommandScope`, optional): A JSON-serialized object,
+                describing scope of users for which the commands are relevant. Defaults to
+                :class:`telegram.BotCommandScopeDefault`.
+            language_code (:obj:`str`, optional): A two-letter ISO 639-1 language code. If empty,
+                commands will be applied to all users from the given scope, for whose language
+                there are no dedicated commands.
+            timeout (:obj:`int` | :obj:`float`, optional): If this value is specified, use it as
+                the read timeout from the server (instead of the one specified during creation of
+                the connection pool).
+            api_kwargs (:obj:`dict`, optional): Arbitrary keyword arguments to be passed to the
+                Telegram API.
+
+        Returns:
+            :obj:`bool`: On success, :obj:`True` is returned.
+
+        Raises:
+            :class:`telegram.error.TelegramError`
+        """
+        data: JSONDict = {}
+
+        if scope:
+            data['scope'] = scope.to_dict()
+
+        if language_code:
+            data['language_code'] = language_code
+
+        result = self._post('deleteMyCommands', data, timeout=timeout, api_kwargs=api_kwargs)
+
+        if (scope is None or scope.type == scope.DEFAULT) and language_code is None:
+            self._commands = []
 
         return result  # type: ignore[return-value]
 
@@ -5071,7 +5296,7 @@ class Bot(TelegramObject):
             'disable_notification': disable_notification,
             'allow_sending_without_reply': allow_sending_without_reply,
         }
-        if caption:
+        if caption is not None:
             data['caption'] = caption
         if caption_entities:
             data['caption_entities'] = caption_entities
@@ -5089,6 +5314,7 @@ class Bot(TelegramObject):
         return MessageId.de_json(result, self)  # type: ignore[return-value, arg-type]
 
     def to_dict(self) -> JSONDict:
+        """See :meth:`telegram.TelegramObject.to_dict`."""
         data: JSONDict = {'id': self.id, 'username': self.username, 'first_name': self.first_name}
 
         if self.last_name:
@@ -5149,6 +5375,8 @@ class Bot(TelegramObject):
     """Alias for :meth:`get_user_profile_photos`"""
     getFile = get_file
     """Alias for :meth:`get_file`"""
+    banChatMember = ban_chat_member
+    """Alias for :meth:`ban_chat_member`"""
     kickChatMember = kick_chat_member
     """Alias for :meth:`kick_chat_member`"""
     unbanChatMember = unban_chat_member
@@ -5181,6 +5409,8 @@ class Bot(TelegramObject):
     """Alias for :meth:`set_chat_sticker_set`"""
     deleteChatStickerSet = delete_chat_sticker_set
     """Alias for :meth:`delete_chat_sticker_set`"""
+    getChatMemberCount = get_chat_member_count
+    """Alias for :meth:`get_chat_member_count`"""
     getChatMembersCount = get_chat_members_count
     """Alias for :meth:`get_chat_members_count`"""
     getWebhookInfo = get_webhook_info
@@ -5251,6 +5481,8 @@ class Bot(TelegramObject):
     """Alias for :meth:`get_my_commands`"""
     setMyCommands = set_my_commands
     """Alias for :meth:`set_my_commands`"""
+    deleteMyCommands = delete_my_commands
+    """Alias for :meth:`delete_my_commands`"""
     logOut = log_out
     """Alias for :meth:`log_out`"""
     copyMessage = copy_message
