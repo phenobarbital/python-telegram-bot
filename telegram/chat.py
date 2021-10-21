@@ -18,11 +18,13 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Telegram Chat."""
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional, ClassVar, Union, Tuple, Any
 
 from telegram import ChatPhoto, TelegramObject, constants
 from telegram.utils.types import JSONDict, FileInput, ODVInput, DVInput
+from telegram.utils.deprecate import TelegramDeprecationWarning
 
 from .chatpermissions import ChatPermissions
 from .chatlocation import ChatLocation
@@ -143,6 +145,30 @@ class Chat(TelegramObject):
 
     """
 
+    __slots__ = (
+        'bio',
+        'id',
+        'type',
+        'last_name',
+        'bot',
+        'sticker_set_name',
+        'slow_mode_delay',
+        'location',
+        'first_name',
+        'permissions',
+        'invite_link',
+        'pinned_message',
+        'description',
+        'can_set_sticker_set',
+        'username',
+        'title',
+        'photo',
+        'linked_chat_id',
+        'all_members_are_administrators',
+        'message_auto_delete_time',
+        '_id_attrs',
+    )
+
     SENDER: ClassVar[str] = constants.CHAT_SENDER
     """:const:`telegram.constants.CHAT_SENDER`
 
@@ -229,14 +255,16 @@ class Chat(TelegramObject):
     @property
     def link(self) -> Optional[str]:
         """:obj:`str`: Convenience property. If the chat has a :attr:`username`, returns a t.me
-        link of the chat."""
+        link of the chat.
+        """
         if self.username:
             return f"https://t.me/{self.username}"
         return None
 
     @classmethod
     def de_json(cls, data: Optional[JSONDict], bot: 'Bot') -> Optional['Chat']:
-        data = cls.parse_data(data)
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
         if not data:
             return None
@@ -258,7 +286,7 @@ class Chat(TelegramObject):
         For the documentation of the arguments, please see :meth:`telegram.Bot.leave_chat`.
 
         Returns:
-            :obj:`bool` If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.leave_chat(
@@ -293,18 +321,36 @@ class Chat(TelegramObject):
     def get_members_count(
         self, timeout: ODVInput[float] = DEFAULT_NONE, api_kwargs: JSONDict = None
     ) -> int:
+        """
+        Deprecated, use :func:`~telegram.Chat.get_member_count` instead.
+
+        .. deprecated:: 13.7
+        """
+        warnings.warn(
+            '`Chat.get_members_count` is deprecated. Use `Chat.get_member_count` instead.',
+            TelegramDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.get_member_count(
+            timeout=timeout,
+            api_kwargs=api_kwargs,
+        )
+
+    def get_member_count(
+        self, timeout: ODVInput[float] = DEFAULT_NONE, api_kwargs: JSONDict = None
+    ) -> int:
         """Shortcut for::
 
-            bot.get_chat_members_count(update.effective_chat.id, *args, **kwargs)
+            bot.get_chat_member_count(update.effective_chat.id, *args, **kwargs)
 
         For the documentation of the arguments, please see
-        :meth:`telegram.Bot.get_chat_members_count`.
+        :meth:`telegram.Bot.get_chat_member_count`.
 
         Returns:
             :obj:`int`
-
         """
-        return self.bot.get_chat_members_count(
+        return self.bot.get_chat_member_count(
             chat_id=self.id,
             timeout=timeout,
             api_kwargs=api_kwargs,
@@ -341,23 +387,44 @@ class Chat(TelegramObject):
         api_kwargs: JSONDict = None,
         revoke_messages: bool = None,
     ) -> bool:
+        """
+        Deprecated, use :func:`~telegram.Chat.ban_member` instead.
+
+        .. deprecated:: 13.7
+        """
+        warnings.warn(
+            '`Chat.kick_member` is deprecated. Use `Chat.ban_member` instead.',
+            TelegramDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self.ban_member(
+            user_id=user_id,
+            timeout=timeout,
+            until_date=until_date,
+            api_kwargs=api_kwargs,
+            revoke_messages=revoke_messages,
+        )
+
+    def ban_member(
+        self,
+        user_id: Union[str, int],
+        timeout: ODVInput[float] = DEFAULT_NONE,
+        until_date: Union[int, datetime] = None,
+        api_kwargs: JSONDict = None,
+        revoke_messages: bool = None,
+    ) -> bool:
         """Shortcut for::
 
-            bot.kick_chat_member(update.effective_chat.id, *args, **kwargs)
+            bot.ban_chat_member(update.effective_chat.id, *args, **kwargs)
 
         For the documentation of the arguments, please see
-        :meth:`telegram.Bot.kick_chat_member`.
+        :meth:`telegram.Bot.ban_chat_member`.
 
         Returns:
-            :obj:`bool`: If the action was sent successfully.
-
-        Note:
-            This method will only work if the `All Members Are Admins` setting is off in the
-            target group. Otherwise members may only be removed by the group's creator or by the
-            member that added them.
-
+            :obj:`bool`: On success, :obj:`True` is returned.
         """
-        return self.bot.kick_chat_member(
+        return self.bot.ban_chat_member(
             chat_id=self.id,
             user_id=user_id,
             timeout=timeout,
@@ -380,7 +447,7 @@ class Chat(TelegramObject):
         For the documentation of the arguments, please see :meth:`telegram.Bot.unban_chat_member`.
 
         Returns:
-            :obj:`bool`: If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.unban_chat_member(
@@ -418,7 +485,7 @@ class Chat(TelegramObject):
         .. versionadded:: 13.2
 
         Returns:
-            :obj:`bool`: If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.promote_chat_member(
@@ -457,7 +524,7 @@ class Chat(TelegramObject):
         .. versionadded:: 13.2
 
         Returns:
-            :obj:`bool`: If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.restrict_chat_member(
@@ -483,7 +550,7 @@ class Chat(TelegramObject):
         :meth:`telegram.Bot.set_chat_permissions`.
 
         Returns:
-            :obj:`bool`: If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.set_chat_permissions(
@@ -508,7 +575,7 @@ class Chat(TelegramObject):
         :meth:`telegram.Bot.set_chat_administrator_custom_title`.
 
         Returns:
-        :obj:`bool`: If the action was sent successfully.
+            :obj:`bool`: On success, :obj:`True` is returned.
 
         """
         return self.bot.set_chat_administrator_custom_title(
@@ -652,7 +719,7 @@ class Chat(TelegramObject):
         For the documentation of the arguments, please see :meth:`telegram.Bot.send_media_group`.
 
         Returns:
-            List[:class:`telegram.Message`:] On success, instance representing the message posted.
+            List[:class:`telegram.Message`]: On success, instance representing the message posted.
 
         """
         return self.bot.send_media_group(

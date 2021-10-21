@@ -38,7 +38,9 @@ class VoiceChatStarted(TelegramObject):
     .. versionadded:: 13.4
     """
 
-    def __init__(self, **_kwargs: Any):
+    __slots__ = ()
+
+    def __init__(self, **_kwargs: Any):  # skipcq: PTC-W0049
         pass
 
 
@@ -61,6 +63,8 @@ class VoiceChatEnded(TelegramObject):
         duration (:obj:`int`): Voice chat duration in seconds.
 
     """
+
+    __slots__ = ('duration', '_id_attrs')
 
     def __init__(self, duration: int, **_kwargs: Any) -> None:
         self.duration = int(duration) if duration is not None else None
@@ -89,6 +93,8 @@ class VoiceChatParticipantsInvited(TelegramObject):
 
     """
 
+    __slots__ = ('users', '_id_attrs')
+
     def __init__(self, users: List[User], **_kwargs: Any) -> None:
         self.users = users
         self._id_attrs = (self.users,)
@@ -100,7 +106,8 @@ class VoiceChatParticipantsInvited(TelegramObject):
     def de_json(
         cls, data: Optional[JSONDict], bot: 'Bot'
     ) -> Optional['VoiceChatParticipantsInvited']:
-        data = cls.parse_data(data)
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
         if not data:
             return None
@@ -109,6 +116,7 @@ class VoiceChatParticipantsInvited(TelegramObject):
         return cls(**data)
 
     def to_dict(self) -> JSONDict:
+        """See :meth:`telegram.TelegramObject.to_dict`."""
         data = super().to_dict()
 
         data["users"] = [u.to_dict() for u in self.users]
@@ -132,6 +140,8 @@ class VoiceChatScheduled(TelegramObject):
 
     """
 
+    __slots__ = ('start_date', '_id_attrs')
+
     def __init__(self, start_date: dtm.datetime, **_kwargs: Any) -> None:
         self.start_date = start_date
 
@@ -139,7 +149,8 @@ class VoiceChatScheduled(TelegramObject):
 
     @classmethod
     def de_json(cls, data: Optional[JSONDict], bot: 'Bot') -> Optional['VoiceChatScheduled']:
-        data = cls.parse_data(data)
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
         if not data:
             return None
@@ -149,6 +160,7 @@ class VoiceChatScheduled(TelegramObject):
         return cls(**data, bot=bot)
 
     def to_dict(self) -> JSONDict:
+        """See :meth:`telegram.TelegramObject.to_dict`."""
         data = super().to_dict()
 
         # Required

@@ -71,6 +71,8 @@ class InlineQuery(TelegramObject):
 
     """
 
+    __slots__ = ('bot', 'location', 'chat_type', 'id', 'offset', 'from_user', 'query', '_id_attrs')
+
     def __init__(
         self,
         id: str,  # pylint: disable=W0622
@@ -97,7 +99,8 @@ class InlineQuery(TelegramObject):
 
     @classmethod
     def de_json(cls, data: Optional[JSONDict], bot: 'Bot') -> Optional['InlineQuery']:
-        data = cls.parse_data(data)
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
         if not data:
             return None

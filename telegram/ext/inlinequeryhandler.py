@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
-""" This module contains the InlineQueryHandler class """
+"""This module contains the InlineQueryHandler class."""
 import re
 from typing import (
     TYPE_CHECKING,
@@ -35,14 +35,15 @@ from telegram import Update
 from telegram.utils.helpers import DefaultValue, DEFAULT_FALSE
 
 from .handler import Handler
+from .utils.types import CCT
 
 if TYPE_CHECKING:
-    from telegram.ext import CallbackContext, Dispatcher
+    from telegram.ext import Dispatcher
 
 RT = TypeVar('RT')
 
 
-class InlineQueryHandler(Handler[Update]):
+class InlineQueryHandler(Handler[Update, CCT]):
     """
     Handler class to handle Telegram inline queries. Optionally based on a regex. Read the
     documentation of the ``re`` module for more information.
@@ -129,9 +130,11 @@ class InlineQueryHandler(Handler[Update]):
 
     """
 
+    __slots__ = ('pattern', 'chat_types', 'pass_groups', 'pass_groupdict')
+
     def __init__(
         self,
-        callback: Callable[[Update, 'CallbackContext'], RT],
+        callback: Callable[[Update, CCT], RT],
         pass_update_queue: bool = False,
         pass_job_queue: bool = False,
         pattern: Union[str, Pattern] = None,
@@ -170,7 +173,6 @@ class InlineQueryHandler(Handler[Update]):
             :obj:`bool`
 
         """
-
         if isinstance(update, Update) and update.inline_query:
             if (self.chat_types is not None) and (
                 update.inline_query.chat_type not in self.chat_types
@@ -191,6 +193,10 @@ class InlineQueryHandler(Handler[Update]):
         update: Update = None,
         check_result: Optional[Union[bool, Match]] = None,
     ) -> Dict[str, object]:
+        """Pass the results of ``re.match(pattern, query).{groups(), groupdict()}`` to the
+        callback as a keyword arguments called ``groups`` and ``groupdict``, respectively, if
+        needed.
+        """
         optional_args = super().collect_optional_args(dispatcher, update, check_result)
         if self.pattern:
             check_result = cast(Match, check_result)
@@ -202,11 +208,14 @@ class InlineQueryHandler(Handler[Update]):
 
     def collect_additional_context(
         self,
-        context: 'CallbackContext',
+        context: CCT,
         update: Update,
         dispatcher: 'Dispatcher',
         check_result: Optional[Union[bool, Match]],
     ) -> None:
+        """Add the result of ``re.match(pattern, update.inline_query.query)`` to
+        :attr:`CallbackContext.matches` as list with one element.
+        """
         if self.pattern:
             check_result = cast(Match, check_result)
             context.matches = [check_result]

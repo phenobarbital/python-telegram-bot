@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pylint: disable=C0116
+# pylint: disable=C0116,W0613
 # This program is dedicated to the public domain under the CC0 license.
 
 """
@@ -35,7 +35,8 @@ def extract_status_change(
 ) -> Optional[Tuple[bool, bool]]:
     """Takes a ChatMemberUpdated instance and extracts whether the 'old_chat_member' was a member
     of the chat and whether the 'new_chat_member' is a member of the chat. Returns None, if
-    the status didn't change."""
+    the status didn't change.
+    """
     status_change = chat_member_update.difference().get("status")
     old_is_member, new_is_member = chat_member_update.difference().get("is_member", (None, None))
 
@@ -113,7 +114,7 @@ def show_chats(update: Update, context: CallbackContext) -> None:
     update.effective_message.reply_text(text)
 
 
-def greet_chat_members(update: Update, _: CallbackContext) -> None:
+def greet_chat_members(update: Update, context: CallbackContext) -> None:
     """Greets new users in chats and announces when someone leaves"""
     result = extract_status_change(update.chat_member)
     if result is None:
@@ -151,11 +152,9 @@ def main() -> None:
     dispatcher.add_handler(ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER))
 
     # Start the Bot
-    # We pass 'allowed_updates' to *only* handle updates with '(my_)chat_member' or 'message'
-    # If you want to handle *all* updates, pass Update.ALL_TYPES
-    updater.start_polling(
-        allowed_updates=[Update.MESSAGE, Update.CHAT_MEMBER, Update.MY_CHAT_MEMBER]
-    )
+    # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
+    # To reset this, simply pass `allowed_updates=[]`
+    updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
