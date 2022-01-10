@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -1717,6 +1717,16 @@ class TestFilters:
         assert Filters.sender_chat.channel(update)
         update.message.sender_chat = None
         assert not Filters.sender_chat.channel(update)
+
+    def test_filters_is_automatic_forward(self, update):
+        assert not Filters.is_automatic_forward(update)
+        update.message.is_automatic_forward = True
+        assert Filters.is_automatic_forward(update)
+
+    def test_filters_has_protected_content(self, update):
+        assert not Filters.has_protected_content(update)
+        update.message.has_protected_content = True
+        assert Filters.has_protected_content(update)
 
     def test_filters_invoice(self, update):
         assert not Filters.invoice(update)

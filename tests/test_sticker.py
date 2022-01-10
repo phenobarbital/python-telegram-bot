@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -106,7 +106,9 @@ class TestSticker:
 
     @flaky(3, 1)
     def test_send_all_args(self, bot, chat_id, sticker_file, sticker):
-        message = bot.send_sticker(chat_id, sticker=sticker_file, disable_notification=False)
+        message = bot.send_sticker(
+            chat_id, sticker=sticker_file, disable_notification=False, protect_content=True
+        )
 
         assert isinstance(message.sticker, Sticker)
         assert isinstance(message.sticker.file_id, str)
@@ -126,6 +128,7 @@ class TestSticker:
         assert message.sticker.thumb.width == sticker.thumb.width
         assert message.sticker.thumb.height == sticker.thumb.height
         assert message.sticker.thumb.file_size == sticker.thumb.file_size
+        assert message.has_protected_content
 
     @flaky(3, 1)
     def test_get_and_download(self, bot, sticker):

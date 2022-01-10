@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -80,6 +80,7 @@ class TestLocation:
             horizontal_accuracy=50,
             heading=90,
             proximity_alert_radius=1000,
+            protect_content=True,
         )
         assert message.location
         assert pytest.approx(52.223880, message.location.latitude)
@@ -88,6 +89,7 @@ class TestLocation:
         assert message.location.horizontal_accuracy == 50
         assert message.location.heading == 90
         assert message.location.proximity_alert_radius == 1000
+        assert message.has_protected_content
 
         message2 = bot.edit_message_live_location(
             message.chat_id,

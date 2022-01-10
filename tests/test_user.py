@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 import pytest
 
-from telegram import Update, User, Bot
+from telegram import Update, User, Bot, InlineKeyboardButton
 from telegram.utils.helpers import escape_markdown
 from tests.conftest import check_shortcut_signature, check_shortcut_call, check_defaults_handling
 
@@ -430,6 +430,40 @@ class TestUser:
         monkeypatch.setattr(user.bot, 'copy_message', make_assertion)
         assert user.copy_message(chat_id='chat_id', message_id='message_id')
 
+    def test_instance_method_approve_join_request(self, monkeypatch, user):
+        def make_assertion(*_, **kwargs):
+            chat_id = kwargs['chat_id'] == 'chat_id'
+            user_id = kwargs['user_id'] == user.id
+            return chat_id and user_id
+
+        assert check_shortcut_signature(
+            User.approve_join_request, Bot.approve_chat_join_request, ['user_id'], []
+        )
+        assert check_shortcut_call(
+            user.approve_join_request, user.bot, 'approve_chat_join_request'
+        )
+        assert check_defaults_handling(user.approve_join_request, user.bot)
+
+        monkeypatch.setattr(user.bot, 'approve_chat_join_request', make_assertion)
+        assert user.approve_join_request(chat_id='chat_id')
+
+    def test_instance_method_decline_join_request(self, monkeypatch, user):
+        def make_assertion(*_, **kwargs):
+            chat_id = kwargs['chat_id'] == 'chat_id'
+            user_id = kwargs['user_id'] == user.id
+            return chat_id and user_id
+
+        assert check_shortcut_signature(
+            User.decline_join_request, Bot.decline_chat_join_request, ['user_id'], []
+        )
+        assert check_shortcut_call(
+            user.decline_join_request, user.bot, 'decline_chat_join_request'
+        )
+        assert check_defaults_handling(user.decline_join_request, user.bot)
+
+        monkeypatch.setattr(user.bot, 'decline_chat_join_request', make_assertion)
+        assert user.decline_join_request(chat_id='chat_id')
+
     def test_mention_html(self, user):
         expected = '<a href="tg://user?id={}">{}</a>'
 
@@ -438,6 +472,13 @@ class TestUser:
             user.id, 'the&lt;b&gt;name\u2022'
         )
         assert user.mention_html(user.username) == expected.format(user.id, user.username)
+
+    def test_mention_button(self, user):
+        expected_name = InlineKeyboardButton(text="Bob", url=f"tg://user?id={user.id}")
+        expected_full = InlineKeyboardButton(text=user.full_name, url=f"tg://user?id={user.id}")
+
+        assert user.mention_button("Bob") == expected_name
+        assert user.mention_button() == expected_full
 
     def test_mention_markdown(self, user):
         expected = '[{}](tg://user?id={})'

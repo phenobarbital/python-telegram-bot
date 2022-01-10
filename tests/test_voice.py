@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -81,6 +81,7 @@ class TestVoice:
             duration=self.duration,
             caption=self.caption,
             disable_notification=False,
+            protect_content=True,
             parse_mode='Markdown',
         )
 
@@ -93,6 +94,7 @@ class TestVoice:
         assert message.voice.mime_type == voice.mime_type
         assert message.voice.file_size == voice.file_size
         assert message.caption == self.caption.replace('*', '')
+        assert message.has_protected_content
 
     @flaky(3, 1)
     def test_send_voice_custom_filename(self, bot, chat_id, voice_file, monkeypatch):

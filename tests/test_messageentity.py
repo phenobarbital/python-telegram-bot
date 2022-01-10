@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -31,9 +31,9 @@ def message_entity(request):
     if type_ == MessageEntity.TEXT_MENTION:
         user = User(1, 'test_user', False)
     language = None
-    if type == MessageEntity.PRE:
+    if type_ == MessageEntity.PRE:
         language = "python"
-    return MessageEntity(type, 1, 3, url=url, user=user, language=language)
+    return MessageEntity(type_, 1, 3, url=url, user=user, language=language)
 
 
 class TestMessageEntity:

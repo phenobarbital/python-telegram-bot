@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -324,6 +324,20 @@ class TestBot:
         assert forward_message.forward_from.username == message.from_user.username
         assert isinstance(forward_message.forward_date, dtm.datetime)
 
+    def test_forward_protected_message(self, bot, message, chat_id):
+        to_forward_protected = bot.send_message(chat_id, 'cant forward me', protect_content=True)
+        assert to_forward_protected.has_protected_content
+
+        with pytest.raises(BadRequest, match="can't be forwarded"):
+            to_forward_protected.forward(chat_id)
+
+        to_forward_unprotected = bot.send_message(chat_id, 'forward me', protect_content=False)
+        assert not to_forward_unprotected.has_protected_content
+        forwarded_but_now_protected = to_forward_unprotected.forward(chat_id, protect_content=True)
+        assert forwarded_but_now_protected.has_protected_content
+        with pytest.raises(BadRequest, match="can't be forwarded"):
+            forwarded_but_now_protected.forward(chat_id)
+
     @flaky(3, 1)
     def test_delete_message(self, bot, chat_id):
         message = bot.send_message(chat_id, text='will be deleted')
@@ -360,6 +374,7 @@ class TestBot:
             longitude=longitude,
             foursquare_id=foursquare_id,
             foursquare_type=foursquare_type,
+            protect_content=True,
         )
 
         assert message.venue
@@ -371,6 +386,7 @@ class TestBot:
         assert message.venue.foursquare_type == foursquare_type
         assert message.venue.google_place_id is None
         assert message.venue.google_place_type is None
+        assert message.has_protected_content
 
         message = bot.send_venue(
             chat_id=chat_id,
@@ -380,6 +396,7 @@ class TestBot:
             longitude=longitude,
             google_place_id=google_place_id,
             google_place_type=google_place_type,
+            protect_content=True,
         )
 
         assert message.venue
@@ -391,6 +408,7 @@ class TestBot:
         assert message.venue.google_place_type == google_place_type
         assert message.venue.foursquare_id is None
         assert message.venue.foursquare_type is None
+        assert message.has_protected_content
 
     @flaky(3, 1)
     @pytest.mark.xfail(raises=RetryAfter)
@@ -402,13 +420,18 @@ class TestBot:
         first_name = 'Leandro'
         last_name = 'Toledo'
         message = bot.send_contact(
-            chat_id=chat_id, phone_number=phone_number, first_name=first_name, last_name=last_name
+            chat_id=chat_id,
+            phone_number=phone_number,
+            first_name=first_name,
+            last_name=last_name,
+            protect_content=True,
         )
 
         assert message.contact
         assert message.contact.phone_number == phone_number
         assert message.contact.first_name == first_name
         assert message.contact.last_name == last_name
+        assert message.has_protected_content
 
     # TODO: Add bot to group to test polls too
 
@@ -435,6 +458,7 @@ class TestBot:
             is_anonymous=False,
             allows_multiple_answers=True,
             timeout=60,
+            protect_content=True,
         )
 
         assert message.poll
@@ -446,6 +470,7 @@ class TestBot:
         assert message.poll.allows_multiple_answers
         assert not message.poll.is_closed
         assert message.poll.type == Poll.REGULAR
+        assert message.has_protected_content
 
         # Since only the poll and not the complete message is returned, we can't check that the
         # reply_markup is correct. So we just test that sending doesn't give an error.
@@ -664,9 +689,10 @@ class TestBot:
     @flaky(3, 1)
     @pytest.mark.parametrize('emoji', Dice.ALL_EMOJI + [None])
     def test_send_dice(self, bot, chat_id, emoji):
-        message = bot.send_dice(chat_id, emoji=emoji)
+        message = bot.send_dice(chat_id, emoji=emoji, protect_content=True)
 
         assert message.dice
+        assert message.has_protected_content
         if emoji is None:
             assert message.dice.emoji == Dice.DICE
         else:
@@ -718,6 +744,7 @@ class TestBot:
             ChatAction.UPLOAD_VIDEO,
             ChatAction.UPLOAD_VIDEO_NOTE,
             ChatAction.UPLOAD_VOICE,
+            ChatAction.CHOOSE_STICKER,
         ],
     )
     def test_send_chat_action(self, bot, chat_id, chat_action):
@@ -1011,6 +1038,17 @@ class TestBot:
         assert tz_bot.ban_chat_member(2, 32, until_date=until)
         assert tz_bot.ban_chat_member(2, 32, until_date=until_timestamp)
 
+    def test_ban_chat_sender_chat(self, monkeypatch, bot):
+        # For now, we just test that we pass the correct data to TG
+        def make_assertion(url, data, *args, **kwargs):
+            chat_id = data['chat_id'] == 2
+            sender_chat_id = data['sender_chat_id'] == 32
+            return chat_id and sender_chat_id
+
+        monkeypatch.setattr(bot.request, 'post', make_assertion)
+        assert bot.ban_chat_sender_chat(2, 32)
+        monkeypatch.delattr(bot.request, 'post')
+
     def test_kick_chat_member_warning(self, monkeypatch, bot, recwarn):
         def test(url, data, *args, **kwargs):
             chat_id = data['chat_id'] == 2
@@ -1035,6 +1073,15 @@ class TestBot:
         monkeypatch.setattr(bot.request, 'post', make_assertion)
 
         assert bot.unban_chat_member(2, 32, only_if_banned=only_if_banned)
+
+    def test_unban_chat_sender_chat(self, monkeypatch, bot):
+        def make_assertion(url, data, *args, **kwargs):
+            chat_id = data['chat_id'] == 2
+            sender_chat_id = data['sender_chat_id'] == 32
+            return chat_id and sender_chat_id
+
+        monkeypatch.setattr(bot.request, 'post', make_assertion)
+        assert bot.unbanChatSenderChat(2, 32)
 
     def test_set_chat_permissions(self, monkeypatch, bot, chat_permissions):
         def test(url, data, *args, **kwargs):
@@ -1393,7 +1440,7 @@ class TestBot:
     @flaky(3, 1)
     def test_send_game(self, bot, chat_id):
         game_short_name = 'test_game'
-        message = bot.send_game(chat_id, game_short_name)
+        message = bot.send_game(chat_id, game_short_name, protect_content=True)
 
         assert message.game
         assert message.game.description == (
@@ -1403,6 +1450,7 @@ class TestBot:
         # We added some test bots later and for some reason the file size is not the same for them
         # so we accept three different sizes here. Shouldn't be too much of
         assert message.game.photo[0].file_size in [851, 4928, 850]
+        assert message.has_protected_content
 
     @flaky(3, 1)
     @pytest.mark.parametrize(
@@ -1696,6 +1744,37 @@ class TestBot:
         assert isinstance(invite_link, str)
         assert invite_link != ''
 
+    def test_create_edit_invite_link_mutually_exclusive_arguments(self, bot, channel_id):
+        data = {'chat_id': channel_id, 'member_limit': 17, 'creates_join_request': True}
+
+        with pytest.raises(ValueError, match="`member_limit` can't be specified"):
+            bot.create_chat_invite_link(**data)
+
+        data.update({'invite_link': 'https://invite.link'})
+        with pytest.raises(ValueError, match="`member_limit` can't be specified"):
+            bot.edit_chat_invite_link(**data)
+
+    @flaky(3, 1)
+    @pytest.mark.parametrize('creates_join_request', [True, False])
+    @pytest.mark.parametrize('name', [None, 'name'])
+    def test_create_chat_invite_link_basics(self, bot, creates_join_request, name, channel_id):
+        data = {}
+        if creates_join_request:
+            data['creates_join_request'] = True
+        if name:
+            data['name'] = name
+        invite_link = bot.create_chat_invite_link(chat_id=channel_id, **data)
+
+        assert invite_link.member_limit is None
+        assert invite_link.expire_date is None
+        assert invite_link.creates_join_request == creates_join_request
+        assert invite_link.name == name
+
+        revoked_link = bot.revoke_chat_invite_link(
+            chat_id=channel_id, invite_link=invite_link.invite_link
+        )
+        assert revoked_link.is_revoked
+
     @flaky(3, 1)
     @pytest.mark.parametrize('datetime', argvalues=[True, False], ids=['datetime', 'integer'])
     def test_advanced_chat_invite_links(self, bot, channel_id, datetime):
@@ -1720,11 +1799,28 @@ class TestBot:
         aware_time_in_future = pytz.UTC.localize(time_in_future)
 
         edited_invite_link = bot.edit_chat_invite_link(
-            channel_id, invite_link.invite_link, expire_date=expire_time, member_limit=20
+            channel_id,
+            invite_link.invite_link,
+            expire_date=expire_time,
+            member_limit=20,
+            name='NewName',
         )
         assert edited_invite_link.invite_link == invite_link.invite_link
         assert pytest.approx(edited_invite_link.expire_date == aware_time_in_future)
+        assert edited_invite_link.name == 'NewName'
         assert edited_invite_link.member_limit == 20
+
+        edited_invite_link = bot.edit_chat_invite_link(
+            channel_id,
+            invite_link.invite_link,
+            name='EvenNewerName',
+            creates_join_request=True,
+        )
+        assert edited_invite_link.invite_link == invite_link.invite_link
+        assert pytest.approx(edited_invite_link.expire_date == aware_time_in_future)
+        assert edited_invite_link.name == 'EvenNewerName'
+        assert edited_invite_link.creates_join_request is True
+        assert edited_invite_link.member_limit is None
 
         revoked_invite_link = bot.revoke_chat_invite_link(channel_id, invite_link.invite_link)
         assert revoked_invite_link.invite_link == invite_link.invite_link
@@ -1750,15 +1846,48 @@ class TestBot:
         time_in_future = aware_expire_date.replace(tzinfo=None)
 
         edited_invite_link = tz_bot.edit_chat_invite_link(
-            channel_id, invite_link.invite_link, expire_date=time_in_future, member_limit=20
+            channel_id,
+            invite_link.invite_link,
+            expire_date=time_in_future,
+            member_limit=20,
+            name='NewName',
         )
         assert edited_invite_link.invite_link == invite_link.invite_link
         assert pytest.approx(edited_invite_link.expire_date == aware_expire_date)
+        assert edited_invite_link.name == 'NewName'
         assert edited_invite_link.member_limit == 20
+
+        edited_invite_link = tz_bot.edit_chat_invite_link(
+            channel_id,
+            invite_link.invite_link,
+            name='EvenNewerName',
+            creates_join_request=True,
+        )
+        assert edited_invite_link.invite_link == invite_link.invite_link
+        assert pytest.approx(edited_invite_link.expire_date == aware_expire_date)
+        assert edited_invite_link.name == 'EvenNewerName'
+        assert edited_invite_link.creates_join_request is True
+        assert edited_invite_link.member_limit is None
 
         revoked_invite_link = tz_bot.revoke_chat_invite_link(channel_id, invite_link.invite_link)
         assert revoked_invite_link.invite_link == invite_link.invite_link
         assert revoked_invite_link.is_revoked is True
+
+    @flaky(3, 1)
+    def test_approve_chat_join_request(self, bot, chat_id, channel_id):
+        # TODO: Need incoming join request to properly test
+        # Since we can't create join requests on the fly, we just tests the call to TG
+        # by checking that it complains about approving a user who is already in the chat
+        with pytest.raises(BadRequest, match='User_already_participant'):
+            bot.approve_chat_join_request(chat_id=channel_id, user_id=chat_id)
+
+    @flaky(3, 1)
+    def test_decline_chat_join_request(self, bot, chat_id, channel_id):
+        # TODO: Need incoming join request to properly test
+        # Since we can't create join requests on the fly, we just tests the call to TG
+        # by checking that it complains about declining a user who is already in the chat
+        with pytest.raises(BadRequest, match='User_already_participant'):
+            bot.decline_chat_join_request(chat_id=channel_id, user_id=chat_id)
 
     @flaky(3, 1)
     def test_set_chat_photo(self, bot, channel_id):
@@ -1878,11 +2007,12 @@ class TestBot:
 
     @flaky(3, 1)
     def test_send_message_entities(self, bot, chat_id):
-        test_string = 'Italic Bold Code'
+        test_string = 'Italic Bold Code Spoiler'
         entities = [
             MessageEntity(MessageEntity.ITALIC, 0, 6),
             MessageEntity(MessageEntity.ITALIC, 7, 4),
             MessageEntity(MessageEntity.ITALIC, 12, 4),
+            MessageEntity(MessageEntity.SPOILER, 17, 7),
         ]
         message = bot.send_message(chat_id=chat_id, text=test_string, entities=entities)
         assert message.text == test_string
@@ -2048,6 +2178,7 @@ class TestBot:
             assert data["reply_markup"] == keyboard.to_json()
             assert data["disable_notification"] is True
             assert data["caption_entities"] == [MessageEntity(MessageEntity.BOLD, 0, 4)]
+            assert data['protect_content'] is True
             return data
 
         monkeypatch.setattr(bot.request, 'post', post)
@@ -2061,6 +2192,7 @@ class TestBot:
             reply_to_message_id=media_message.message_id,
             reply_markup=keyboard.to_json() if json_keyboard else keyboard,
             disable_notification=True,
+            protect_content=True,
         )
 
     @flaky(3, 1)

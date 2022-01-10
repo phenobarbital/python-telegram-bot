@@ -1,5 +1,5 @@
 # python-telegram-bot - a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # by the python-telegram-bot contributors <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ The following constants were extracted from the
 `Telegram Bots API <https://core.telegram.org/bots/api>`_.
 
 Attributes:
-    BOT_API_VERSION (:obj:`str`): `5.3`. Telegram Bot API version supported by this
+    BOT_API_VERSION (:obj:`str`): `5.6`. Telegram Bot API version supported by this
         version of `python-telegram-bot`. Also available as ``telegram.bot_api_version``.
 
         .. versionadded:: 13.4
@@ -48,6 +48,10 @@ Attributes:
     ANONYMOUS_ADMIN_ID (:obj:`int`): ``1087968824`` (User id in groups for anonymous admin)
     SERVICE_CHAT_ID (:obj:`int`): ``777000`` (Telegram service chat, that also acts as sender of
         channel posts forwarded to discussion groups)
+    FAKE_CHANNEL_ID (:obj:`int`): ``136817688`` (User id in groups when message is sent on behalf
+        of a channel).
+
+        .. versionadded:: 13.9
 
 The following constants are related to specific classes and are also available
 as attributes of those classes:
@@ -86,6 +90,9 @@ Attributes:
 
         .. versionadded:: 13.5
     CHATACTION_UPLOAD_DOCUMENT (:obj:`str`): ``'upload_document'``
+    CHATACTION_CHOOSE_STICKER (:obj:`str`): ``'choose_sticker'``
+
+        .. versionadded:: 13.8
     CHATACTION_UPLOAD_PHOTO (:obj:`str`): ``'upload_photo'``
     CHATACTION_UPLOAD_VIDEO (:obj:`str`): ``'upload_video'``
     CHATACTION_UPLOAD_VIDEO_NOTE (:obj:`str`): ``'upload_video_note'``
@@ -134,6 +141,9 @@ Attributes:
     MESSAGEENTITY_TEXT_MENTION (:obj:`str`): ``'text_mention'``
     MESSAGEENTITY_UNDERLINE (:obj:`str`): ``'underline'``
     MESSAGEENTITY_STRIKETHROUGH (:obj:`str`): ``'strikethrough'``
+    MESSAGEENTITY_SPOILER (:obj:`str`): ``'spoiler'``
+
+        .. versionadded:: 13.10
     MESSAGEENTITY_ALL_TYPES (List[:obj:`str`]): List of all the types of message entity.
 
 :class:`telegram.ParseMode`:
@@ -201,9 +211,13 @@ Attributes:
     UPDATE_CHAT_MEMBER (:obj:`str`): ``'chat_member'``
 
         .. versionadded:: 13.5
+    UPDATE_CHAT_JOIN_REQUEST (:obj:`str`): ``'chat_join_request'``
+
+        .. versionadded:: 13.8
     UPDATE_ALL_TYPES (List[:obj:`str`]): List of all update types.
 
         .. versionadded:: 13.5
+        .. versionchanged:: 13.8
 
 :class:`telegram.BotCommandScope`:
 
@@ -233,11 +247,12 @@ Attributes:
 """
 from typing import List
 
-BOT_API_VERSION: str = '5.3'
+BOT_API_VERSION: str = '5.6'
 MAX_MESSAGE_LENGTH: int = 4096
 MAX_CAPTION_LENGTH: int = 1024
 ANONYMOUS_ADMIN_ID: int = 1087968824
 SERVICE_CHAT_ID: int = 777000
+FAKE_CHANNEL_ID: int = 136817688
 
 # constants above this line are tested
 
@@ -267,6 +282,7 @@ CHATACTION_TYPING: str = 'typing'
 CHATACTION_UPLOAD_AUDIO: str = 'upload_audio'
 CHATACTION_UPLOAD_VOICE: str = 'upload_voice'
 CHATACTION_UPLOAD_DOCUMENT: str = 'upload_document'
+CHATACTION_CHOOSE_STICKER: str = 'choose_sticker'
 CHATACTION_UPLOAD_PHOTO: str = 'upload_photo'
 CHATACTION_UPLOAD_VIDEO: str = 'upload_video'
 CHATACTION_UPLOAD_VIDEO_NOTE: str = 'upload_video_note'
@@ -308,6 +324,7 @@ MESSAGEENTITY_TEXT_LINK: str = 'text_link'
 MESSAGEENTITY_TEXT_MENTION: str = 'text_mention'
 MESSAGEENTITY_UNDERLINE: str = 'underline'
 MESSAGEENTITY_STRIKETHROUGH: str = 'strikethrough'
+MESSAGEENTITY_SPOILER: str = 'spoiler'
 MESSAGEENTITY_ALL_TYPES: List[str] = [
     MESSAGEENTITY_MENTION,
     MESSAGEENTITY_HASHTAG,
@@ -324,6 +341,7 @@ MESSAGEENTITY_ALL_TYPES: List[str] = [
     MESSAGEENTITY_TEXT_MENTION,
     MESSAGEENTITY_UNDERLINE,
     MESSAGEENTITY_STRIKETHROUGH,
+    MESSAGEENTITY_SPOILER,
 ]
 
 PARSEMODE_MARKDOWN: str = 'Markdown'
@@ -353,6 +371,7 @@ UPDATE_POLL = 'poll'
 UPDATE_POLL_ANSWER = 'poll_answer'
 UPDATE_MY_CHAT_MEMBER = 'my_chat_member'
 UPDATE_CHAT_MEMBER = 'chat_member'
+UPDATE_CHAT_JOIN_REQUEST = 'chat_join_request'
 UPDATE_ALL_TYPES = [
     UPDATE_MESSAGE,
     UPDATE_EDITED_MESSAGE,
@@ -367,6 +386,7 @@ UPDATE_ALL_TYPES = [
     UPDATE_POLL_ANSWER,
     UPDATE_MY_CHAT_MEMBER,
     UPDATE_CHAT_MEMBER,
+    UPDATE_CHAT_JOIN_REQUEST,
 ]
 
 BOT_COMMAND_SCOPE_DEFAULT = 'default'

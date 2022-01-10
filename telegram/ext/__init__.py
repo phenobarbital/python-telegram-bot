@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -59,6 +59,7 @@ from .messagequeue import DelayQueue
 from .pollanswerhandler import PollAnswerHandler
 from .pollhandler import PollHandler
 from .chatmemberhandler import ChatMemberHandler
+from .chatjoinrequesthandler import ChatJoinRequestHandler
 from .defaults import Defaults
 from .callbackdatacache import CallbackDataCache, InvalidCallbackData
 
@@ -68,6 +69,7 @@ __all__ = (
     'CallbackContext',
     'CallbackDataCache',
     'CallbackQueryHandler',
+    'ChatJoinRequestHandler',
     'ChatMemberHandler',
     'ChosenInlineResultHandler',
     'CommandHandler',

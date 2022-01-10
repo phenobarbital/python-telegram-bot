@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -462,7 +462,11 @@ class TestSendMediaGroup:
     def test_send_media_group_all_args(self, bot, chat_id, media_group):
         m1 = bot.send_message(chat_id, text="test")
         messages = bot.send_media_group(
-            chat_id, media_group, disable_notification=True, reply_to_message_id=m1.message_id
+            chat_id,
+            media_group,
+            disable_notification=True,
+            reply_to_message_id=m1.message_id,
+            protect_content=True,
         )
         assert isinstance(messages, list)
         assert len(messages) == 3
@@ -472,6 +476,7 @@ class TestSendMediaGroup:
         assert all(
             mes.caption_entities == [MessageEntity(MessageEntity.BOLD, 0, 5)] for mes in messages
         )
+        assert all(mes.has_protected_content for mes in messages)
 
     @flaky(3, 1)
     def test_send_media_group_custom_filename(

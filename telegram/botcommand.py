@@ -2,7 +2,7 @@
 # pylint: disable=R0903
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2021
+# Copyright (C) 2015-2022
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ class BotCommand(TelegramObject):
     Args:
         command (:obj:`str`): Text of the command, 1-32 characters. Can contain only lowercase
             English letters, digits and underscores.
-        description (:obj:`str`): Description of the command, 3-256 characters.
+        description (:obj:`str`): Description of the command, 1-256 characters.
 
     Attributes:
         command (:obj:`str`): Text of the command.
